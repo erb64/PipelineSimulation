@@ -602,7 +602,6 @@ class instructionFetch:
     cleanup = False
     noHazards = True
     wait = -1
-    words = ['','']
 
     def __init__(self):
         pass
@@ -663,7 +662,10 @@ class instructionFetch:
                 print sim.preMemBuff
             if sim.instrName[index] == 'BLTZ':
                 if self.noHazards:
-                    if sim.R[sim.src1Reg[index]] <= 0:
+                    print 'index, reg contents'
+                    print sim.src1Reg[index],
+                    print sim.R[sim.src1Reg[index]];
+                    if sim.R[sim.src1Reg[index]] < 0:
                         sim.PC += (sim.arg3[index] + 4)
                         print 'BLTZ1, PC NOW ' + str(sim.PC)
                         numIssued += 1
@@ -721,7 +723,7 @@ class instructionFetch:
                             print 'branch hazard 5 found'
                             self.noHazards = False
                         if self.noHazards:
-                            if sim.R[sim.src1Reg[index]] <= 0:
+                            if sim.R[sim.src1Reg[index]] < 0:
                                 sim.PC += (sim.arg3[index] + 4)
                                 print 'BLTZ1, PC NOW ' + str(sim.PC)
                                 numIssued += 1
@@ -784,7 +786,7 @@ class instructionFetch:
                                 print 'branch hazard 5 found'
                                 self.noHazards = False
                             if self.noHazards:
-                                if sim.R[sim.src1Reg[index]] <= 0:
+                                if sim.R[sim.src1Reg[index]] < 0:
                                     sim.PC += (sim.arg3[index] + 4)
                                     print 'BLTZ1, PC NOW ' + str(sim.PC)
                                     numIssued += 1
@@ -904,7 +906,8 @@ class instructionFetch:
                 return True
             else:
                 return False
-        
+        if(sim.cycle > 20): 
+            return False
         return True
         # post - when the correct number of instructions fetched,
         # # the entire program will cycle and start execution over 
