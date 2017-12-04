@@ -353,9 +353,9 @@ class writeBack:
     def run(self):
         #print('wb running')
         if(sim.postALUBuff[1] != -1):
-            # #print('wb destReg index: ' + str(sim.postALUBuff[1]))
-            # #print('wb R index: ' + str(sim.destReg[sim.postALUBuff[1]]))
-            # #print('wb data: ' + str(sim.postALUBuff[0]))
+            print('wb destReg index: ' + str(sim.destReg[sim.postALUBuff[1]]))
+            print('wb R index: ' + str(sim.destReg[sim.postALUBuff[1]]))
+            print('wb data: ' + str(sim.postALUBuff[0]))
 
             sim.R[sim.destReg[sim.postALUBuff[1]]] = sim.postALUBuff[0]
             sim.postALUBuff[0] = -1
@@ -385,9 +385,8 @@ class arithmeticLogicUnit:
         # sim.postALUBuff = [sim.R[ sim.arg1[i] ] + sim.R[ sim.arg2[i] ], i]
         if (sim.preALUBuff[0] != -1):
             i = sim.preALUBuff[0]
-            print i
-            sim.postALUBuff[1] = sim.destReg[i]
-            print sim.destReg[i]
+            # sim.postALUBuff[1] = sim.destReg[i]
+            sim.postALUBuff[1] = i
 
             if(sim.instrName[i] == 'SLL'):
                 sim.postALUBuff[0] = sim.R[sim.src1Reg[i]] * pow(2,sim.arg3[i])
@@ -405,7 +404,9 @@ class arithmeticLogicUnit:
             elif(sim.instrName[i] == 'SUB'):
                 sim.postALUBuff[0] = sim.R[sim.src1Reg[i] - sim.R[sim.src2Reg[i]]]
             elif(sim.instrName[i] == 'ADD'):
-                sim.postALUBuff[0] = sim.R[sim.src1Reg[i] + sim.R[sim.src2Reg[i]]]
+                sim.postALUBuff[0] = sim.R[sim.src1Reg[i]] + sim.R[sim.src2Reg[i]]
+                print 'R[' + str(sim.src1Reg[i]) +'] = ' + str(sim.R[sim.src1Reg[i]])
+                print 'R[' + str(sim.src2Reg[i]) + '] = ' + str(sim.R[sim.src2Reg[i]])
             elif(sim.instrName[i] == 'MOVZ'):
                 if(sim.src2Reg[i] == 0):
                     sim.postALUBuff[0] = sim.src1Reg[i]
@@ -478,85 +479,113 @@ class issueUnit:
         #print('num in preissue buffer' + str(numInPreIssueBuff))
         # 2. process instructions in preissue buff in 0-3 order. look
         # for hazards of all types between mostly adjacent instructions
-        ##WAR CHECK
 
-        while(numIssued < 2 and numInPreIssueBuff > 0 and current < 4):
+        ##WAR CHECK
+        while(numIssued < 2 and numInPreIssueBuff > 0 and current < numInPreIssueBuff):
+            issueMe = True
             currIndex = sim.preIssueBuff[current]
-            
+            print('issue checking for: ' + sim.instrName[currIndex])
             ## CHECK FOR ROOM IN BUFFERS
             if sim.isMemOp(currIndex) and not -1 in sim.preMemBuff:
-                #print 'pre mem full'
+                print 'pre mem full'
                 issueMe = False
             elif not sim.isMemOp(currIndex) and not -1 in sim.preALUBuff:
-                #print 'pre alu full'
+                print 'pre alu full'
                 issueMe = False
 
             ## WAR CHECK    
             if current > 0:
                 for i in range(0,current):
-                    if (sim.destReg[currIndex] == sim.src1Reg[sim.preIssueBuff[i]] or sim.destReg[current] == sim.src2Reg[sim.preIssueBuff[i]]):
-                        #print 'war fail1'
+                    if (sim.destReg[currIndex] == sim.src1Reg[sim.preIssueBuff[i]] or sim.destReg[currIndex] == sim.src2Reg[sim.preIssueBuff[i]]):
+                        print 'war fail1'
+                        print 'i = ' + str(i)
+                        print 'instrname = ' + sim.instrName[currIndex]
+                        print 'current = ' + str(current)
+                        print 'current index = ' + str(currIndex)
+                        print 'destReg = ' + str(sim.destReg[currIndex])
+                        print 'sim.src1Reg[sim.preissueBuff[i]]  ' + str(sim.src1Reg[sim.preIssueBuff[i]])
+                        print 'sim.src2Reg[sim.preissueBuff[i]]  ' + str(sim.src2Reg[sim.preIssueBuff[i]])
                         issueMe = False
-                        break
+                        # break
             if sim.isMemOp(currIndex):
                 for i in range(0, len(sim.preMemBuff)):
                     if sim.preMemBuff[i] != -1:
                         if sim.destReg[currIndex] == sim.src1Reg[sim.preMemBuff[i]] or sim.destReg[currIndex] == sim.src2Reg[sim.preMemBuff[i]]:
-                            #print 'war fail2'
+                            print 'war fail2'
                             issueMe = False
-                            break
-            else:
+                            # break
+            else: #is ALU op
                 for i in range(0, len(sim.preALUBuff)):
                     if sim.preALUBuff[i] != -1:
                         if sim.destReg[currIndex] == sim.src1Reg[sim.preALUBuff[i]] or sim.destReg[currIndex] == sim.src2Reg[sim.preALUBuff[i]]:
-                            #print 'war fail3'
+                            print 'war fail3'
                             issueMe = False
-                            break
+                            # break
             ## RAW CHECK
+            # print 'i = ' + str(i)
+            # print 'current = ' + str(current)
+            # print 'current index = ' + str(currIndex)
+            # print 'src1Reg = ' + str(sim.src1Reg[currIndex])
+            # print 'src2Reg = ' + str(sim.src2Reg[currIndex])
+            # print 'sim.destReg[sim.preALUBuff[0]]  ' + str(sim.destReg[sim.preALUBuff[0]])
+            # print 'sim.destReg[sim.preALUBuff[1]]  ' + str(sim.destReg[sim.preALUBuff[1]])
             if current > 0:
                 for i in range(0,current):
                     if (sim.src1Reg[currIndex] == sim.destReg[sim.preIssueBuff[i]] or sim.src2Reg[currIndex] == sim.destReg[sim.preIssueBuff[i]]):
-                        #print 'raw fail1'
+                        print 'i = ' + str(i)
+                        print 'instrname = ' + sim.instrName[currIndex]
+                        print 'current = ' + str(current)
+                        print 'current index = ' + str(currIndex)
+                        print 'src1Reg = ' + str(sim.src1Reg[currIndex])
+                        print 'src2Reg = ' + str(sim.src2Reg[currIndex])
+                        print 'sim.destReg[sim.preissueBuff[0]]  ' + str(sim.destReg[sim.preIssueBuff[0]])
+                        print 'sim.destReg[sim.preissueBuff[1]]  ' + str(sim.destReg[sim.preIssueBuff[1]])
+
+                        print 'raw fail1'
                         issueMe = False
-                        break
+                        # break
             
             for i in range(0, len(sim.preMemBuff)):
                 if sim.preMemBuff[i] != -1:
                     if sim.src1Reg[currIndex] == sim.destReg[sim.preMemBuff[i]] or sim.src2Reg[currIndex] == sim.destReg[sim.preMemBuff[i]]:
-                        #print 'raw fail2'
+                        print 'raw fail2'
                         issueMe = False
-                        break
+                        # break
             for i in range(0, len(sim.preALUBuff)):
                 if sim.preALUBuff[i] != -1:
                     if sim.src1Reg[currIndex] == sim.destReg[sim.preALUBuff[i]] or sim.src2Reg[currIndex] == sim.destReg[sim.preALUBuff[i]]:
-                        #print 'raw fail3'
+                        print 'raw fail3'
                         issueMe = False
-                        break
+                        # break
 
             if sim.postALUBuff[1] != -1:
                 if sim.src1Reg[currIndex] == sim.destReg[sim.postALUBuff[1]] or sim.src2Reg[currIndex] == sim.destReg[sim.postALUBuff[1]]:
-                    #print 'raw fail4'
+                    print 'raw fail4'
                     #found RAW in post ALU Buffer
                     issueMe = False
             if sim.postMemBuff[1] != -1:
                 if sim.src1Reg[currIndex] == sim.destReg[sim.postMemBuff[1]] or sim.src2Reg[currIndex] == sim.destReg[sim.postMemBuff[1]]:
-                    #print 'raw fail5'
+                    print 'raw fail5'
                     #found RAW in post ALU Buffer
                     issueMe = False
            
             ## WAW CHECK
+            for i in range(0, current):
+                if sim.destReg[currIndex] == sim.destReg[sim.preIssueBuff[i]]:
+                    issueMe = False
+
             for i in range(0, len(sim.preMemBuff)):
                 if sim.preMemBuff[i] != -1:
                     if sim.destReg[currIndex] == sim.destReg[sim.preMemBuff[i]]:
                         #print 'waw fail1'
                         issueMe = False
-                        break
+                        # break
             for i in range(0, len(sim.preALUBuff)):
                 if sim.preALUBuff[i] != -1:
                     if sim.destReg[currIndex] == sim.destReg[sim.preALUBuff[i]]:
-                        #print 'waw fail2'
+                        print 'waw fail2'
                         issueMe = False
-                        break
+                        # break
             if sim.postALUBuff[1] != -1:
                 if sim.destReg[currIndex] == sim.destReg[sim.postALUBuff[1]]:
                     #found WAW in post ALU Buffer
@@ -570,11 +599,17 @@ class issueUnit:
         
             ##ENFORCE ORDERING OF LW SW
             #Enforce ordering of LWs and SWs so we make sure all stores are done before loads
-            
+            if(sim.instrName[currIndex] == 'LW'):
+                print 'looking at lw enforcement check'
+                for i in range(0, current):
+                    print i 
+                    if sim.instrName[sim.preIssueBuff[i]] == 'SW':
+                        print 'enforcing SW order'
+                        issueMe = False
             ##ISSUE AND MOVE INSTRUCTIONS DOWN ONE LEVEL
             if issueMe:
                 numIssued += 1
-                #print('IN ISSUE ME')
+                print('IN ISSUE ME: ' + sim.instrName[currIndex])
                 #copy the instruction to the appropriate buffer
                 #the assumption here is that we will ahve a -1 i the right spot
                 if sim.isMemOp(currIndex):
@@ -595,7 +630,7 @@ class issueUnit:
                 #print sim.preIssueBuff[current:]
                 sim.preIssueBuff[3] = -1
                 numInPreIssueBuff -= 1
-            else:
+            else: 
                 current += 1
 
 class instructionFetch:
@@ -605,141 +640,89 @@ class instructionFetch:
 
     def __init__(self):
         pass
+
+    def checkForBranchHazards(self, index):
+        print 'post mem buff in IF' +str(sim.postMemBuff)
+        for i in range(4):
+            if sim.preIssueBuff[i] != -1:
+                if sim.src1Reg[index] == sim.destReg[sim.preIssueBuff[i]]:
+                    print 'branch hazard found in preIssueBuff'
+                    self.noHazards = False
+        if(sim.preMemBuff[0] != -1):
+            if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[0]]:
+                print 'branch hazard found in premembuff 0'
+                self.noHazards = False
+        if(sim.preMemBuff[1] != -1):
+            if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[1]]:
+                print 'branch hazard found in premembuff 1'
+                self.noHazards = False
+        if(sim.preALUBuff[0] != -1):
+            if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[0]]:
+                print 'branch hazard found in prealubuff 0'
+                self.noHazards = False
+        if(sim.preALUBuff[1] != -1):
+            if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[1]]:
+                print 'branch hazard found in prealubuff 1'
+                self.noHazards = False
+        if(sim.postALUBuff[1] != -1):
+            if sim.src1Reg[index] == sim.destReg[sim.postALUBuff[1]]:
+                print 'branch hazard found in postalubuff'
+                self.noHazards = False
+        if(sim.postMemBuff[1] != -1):
+            print sim.destReg[sim.postMemBuff[1]]
+            print sim.src1Reg[index]
+            if sim.src1Reg[index] == sim.destReg[sim.postMemBuff[1]]:
+                print 'branch hazard found in post mem buff'
+                self.noHazards = False
+
+        if self.noHazards:
+            print 'no hazards found beepboop'
+            print sim.preIssueBuff
+            print sim.preMemBuff
+        if sim.instrName[index] == 'BLTZ':
+            if self.noHazards:
+                print 'index, reg contents'
+                print sim.src1Reg[index],
+                print sim.R[sim.src1Reg[index]];
+                if sim.R[sim.src1Reg[index]] < 0:
+                    sim.PC += (sim.arg3[index] + 4)
+                    print 'BLTZ1, PC NOW ' + str(sim.PC)
+                    # return True
+                else: 
+                    sim.PC += 4
+        if sim.instrName[index] == 'BEQ':
+            if sim.src2Reg[index] in [sim.destReg[sim.preALUBuff[0]], sim.destReg[sim.preMemBuff[0]],sim.destReg[sim.preMemBuff[1]],sim.destReg[sim.preALUBuff[1]]]:
+                print 'branch hazard 5 found'
+                self.noHazards = False
+            if self.noHazards:
+                if(sim.R[sim.src1Reg[index]] == sim.R[sim.src2Reg[index]]):
+                    sim.PC += sim.arg3[i]
+                    sim.PC += 4
+                    print 'BEQ1, PC NOW ' + str(sim.PC)
+                    return True
+                else:
+                    sim.PC += 4
+
     def run(self):
         index = (sim.PC - 96) / 4
+        index1 = index
         numInPre = 0
-        
         numIssued = 0
+
         for i in range(len(sim.preIssueBuff)):
             if sim.preIssueBuff[i] != -1:
                 numInPre += 1
 
-        # during - We will fetch tup to two empty slots in the 
-        # preissue buffer. We get an instruction, check in cache for it,
-        # If hit we will determine if it is a branch or jump 
-        # instructios. If is a branch instruction will check for 
-        # hazards and if none perform the branch instruction. 
-        # Jump done without checking.  The branch will never get 
-        # posted to the pre issue buffer.  Checks for break  
-        # instruction and if found perfoms clean up making  sure 
-        # all instructions finish. Else we don't have a break 
-        # instruction. If we can't get the first instruction out 
-        # of cache we can't fetch the next instruction.
-
-        if not self.noHazards: #if there was a hazard in previous branch
-            self.noHazards = True #assume hazard is gone
-
-            #check for hazards again
-            for i in range(4):
-                if sim.preIssueBuff[i] != -1:
-                    if sim.src1Reg[index] == sim.destReg[sim.preIssueBuff[i]]:
-                        print 'branch hazard found in preIssueBuff'
-                        self.noHazards = False
-            if(sim.preMemBuff[0] != -1):
-                if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[0]]:
-                    print 'branch hazard found in premembuff 0'
-                    self.noHazards = False
-            elif(sim.preMemBuff[1] != -1):
-                if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[1]]:
-                    print 'branch hazard found in premembuff 1'
-                    self.noHazards = False
-            elif(sim.preALUBuff[0] != -1):
-                if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[0]]:
-                    print 'branch hazard found in prealubuff 0'
-                    self.noHazards = False
-            elif(sim.preALUBuff[1] != -1):
-                if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[1]]:
-                    print 'branch hazard found in prealubuff 1'
-                    self.noHazards = False
-            elif(sim.postALUBuff[1] != -1):
-                if sim.src1Reg[index] == sim.destReg[sim.postALUBuff[1]]:
-                    print 'branch hazard found in postalubuff'
-                    self.noHazards = False
-
-            if self.noHazards:
-                print 'no hazards found beepboop'
-                print sim.preIssueBuff
-                print sim.preMemBuff
-            if sim.instrName[index] == 'BLTZ':
-                if self.noHazards:
-                    print 'index, reg contents'
-                    print sim.src1Reg[index],
-                    print sim.R[sim.src1Reg[index]];
-                    if sim.R[sim.src1Reg[index]] < 0:
-                        sim.PC += (sim.arg3[index] + 4)
-                        print 'BLTZ1, PC NOW ' + str(sim.PC)
-                        numIssued += 1
-                        # return True
-                    else: 
-                        sim.PC += 4
-            if sim.instrName[index] == 'BEQ':
-                if sim.src2Reg[index] in [sim.destReg[sim.preALUBuff[0]], sim.destReg[sim.preMemBuff[0]],sim.destReg[sim.preMemBuff[1]],sim.destReg[sim.preALUBuff[1]]]:
-                    print 'branch hazard 5 found'
-                    self.noHazards = False
-                if self.noHazards:
-                    if(sim.R[sim.src1Reg[index]] == sim.R[sim.src2Reg[index]]):
-                        sim.PC += sim.arg3[i]
-                        sim.PC += 4
-                        numIssued += 1
-                        print 'BEQ1, PC NOW ' + str(sim.PC)
-                        return True
-                    else:
-                        sim.PC += 4
-
-        elif not self.cleanup:
+        if not self.cleanup and numInPre < 4: #1
             hit, data1 = sim.cache.accessMemory(-1, index, 0, 0)
         
             if hit and (sim.PC % 8 == 0) and not self.cleanup and numInPre < 4:
                 data2 = sim.instruction[index + 1]
                 self.noHazards = True
+                print 'hittt'
                 #check for branching, check for hazards
-                if(sim.instrName[index] in ['BLTZ', 'BEQ']):
-                    for i in range(4):
-                        if sim.preIssueBuff[i] != -1:
-                            if sim.src1Reg[index] == sim.destReg[sim.preIssueBuff[i]]:
-                                print 'branch hazard found in preIssueBuff'
-                                self.noHazards = False
-                    if(sim.preMemBuff[0] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[0]]:
-                            print 'branch hazard 1 found'
-                            self.noHazards = False
-                    elif(sim.preMemBuff[1] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[1]]:
-                            print 'branch hazard 2 found'
-                            self.noHazards = False
-                    elif(sim.preALUBuff[0] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[0]]:
-                            print 'branch hazard 3 found'
-                            self.noHazards = False
-                    elif(sim.preALUBuff[1] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[1]]:
-                            print 'branch hazard 4 found'
-                            self.noHazards = False
-                    #branch never posted to preissuebuff
-                    if self.noHazards:
-                        print 'no hazards found'
-                    if sim.instrName[index] == 'BLTZ':
-                        if sim.src2Reg[index] in [sim.destReg[sim.preALUBuff[0]], sim.destReg[sim.preMemBuff[0]],sim.destReg[sim.preMemBuff[1]],sim.destReg[sim.preALUBuff[1]]]:
-                            print 'branch hazard 5 found'
-                            self.noHazards = False
-                        if self.noHazards:
-                            if sim.R[sim.src1Reg[index]] < 0:
-                                sim.PC += (sim.arg3[index] + 4)
-                                print 'BLTZ1, PC NOW ' + str(sim.PC)
-                                numIssued += 1
-                                # return True
-                            else: 
-                                sim.PC += 4
-                    if sim.instrName[index] == 'BEQ':
-                        if self.noHazards:
-                            if(sim.R[sim.src1Reg[index]] == sim.R[sim.src2Reg[index]]):
-                                sim.PC += sim.arg3[i]
-                                sim.PC += 4
-                                numIssued += 1
-                                print 'BEQ1, PC NOW ' + str(sim.PC)
-                                return True
-                            else:
-                                sim.PC += 4
+                if(sim.instrName[index] in ['BEQ', 'BLTZ']):
+                    self.checkForBranchHazards(index)
                 #if jump, jump (no checking)
                 elif(sim.instrName[index] == 'J'):
                     sim.PC = sim.arg1[index] 
@@ -754,55 +737,17 @@ class instructionFetch:
                     sim.PC += 4
                 elif(sim.instrName[index] == 'BREAK'):
                     self.cleanup = True
+                    self.wait = 1
                 else:#some regular instruction
+                    print' adding to premem buff'
                     sim.preIssueBuff[numInPre] = index
                     sim.PC += 4
                     numInPre += 1
 
-                if((sim.PC - 96) /4) == index + 1:
+                if(((sim.PC - 96) /4) == index + 1) and numInPre < 4:
                     index = index + 1
                     if(sim.instrName[index] in ['BLTZ', 'BEQ']):
-                        if(sim.preMemBuff[0] != -1):
-                            if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[0]]:
-                                print 'branch hazard 1 found'
-                                self.noHazards = False
-                        elif(sim.preMemBuff[1] != -1):
-                            if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[1]]:
-                                print 'branch hazard 2 found'
-                                self.noHazards = False
-                        elif(sim.preALUBuff[0] != -1):
-                            if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[0]]:
-                                print 'branch hazard 3 found'
-                                self.noHazards = False
-                        elif(sim.preALUBuff[1] != -1):
-                            if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[1]]:
-                                print 'branch hazard 4 found'
-                                self.noHazards = False
-                        #branch never posted to preissuebuff
-                        if self.noHazards:
-                            print 'no hazards found'
-                        if sim.instrName[index] == 'BLTZ':
-                            if sim.src2Reg[index] in [sim.destReg[sim.preALUBuff[0]], sim.destReg[sim.preMemBuff[0]],sim.destReg[sim.preMemBuff[1]],sim.destReg[sim.preALUBuff[1]]]:
-                                print 'branch hazard 5 found'
-                                self.noHazards = False
-                            if self.noHazards:
-                                if sim.R[sim.src1Reg[index]] < 0:
-                                    sim.PC += (sim.arg3[index] + 4)
-                                    print 'BLTZ1, PC NOW ' + str(sim.PC)
-                                    numIssued += 1
-                                    # return True
-                                else: 
-                                    sim.PC += 4
-                        if sim.instrName[index] == 'BEQ':
-                            if self.noHazards:
-                                if(sim.R[sim.src1Reg[index]] == sim.R[sim.src2Reg[index]]):
-                                    sim.PC += sim.arg3[i]
-                                    sim.PC += 4
-                                    numIssued += 1
-                                    print 'BEQ1, PC NOW ' + str(sim.PC)
-                                    return True
-                                else:
-                                    sim.PC += 4\
+                        self.checkForBranchHazards(index)
                     #if jump, jump (no checking)
                     elif(sim.instrName[index] == 'J'):
                         sim.PC = sim.arg1[index] 
@@ -817,55 +762,19 @@ class instructionFetch:
                         sim.PC += 4
                     elif(sim.instrName[index] == 'BREAK'):
                         self.cleanup = True
+                        self.wait = 1
                     else:#some regular instruction
+
                         sim.preIssueBuff[numInPre] = index
                         sim.PC += 4
                         numInPre += 1
+
             elif hit and not self.cleanup and numInPre < 4:
+                print 'hittt 2'
                 self.noHazards = True
                 #check for branching, check for hazards
                 if(sim.instrName[index] in ['BLTZ', 'BEQ']):
-                    if(sim.preMemBuff[0] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[0]]:
-                            print 'branch hazard 1 found'
-                            self.noHazards = False
-                    elif(sim.preMemBuff[1] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preMemBuff[1]]:
-                            print 'branch hazard 2 found'
-                            self.noHazards = False
-                    elif(sim.preALUBuff[0] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[0]]:
-                            print 'branch hazard 3 found'
-                            self.noHazards = False
-                    elif(sim.preALUBuff[1] != -1):
-                        if sim.src1Reg[index] == sim.destReg[sim.preALUBuff[1]]:
-                            print 'branch hazard 4 found'
-                            self.noHazards = False
-                    #branch never posted to preissuebuff
-                    if self.noHazards:
-                        print 'no hazards found'
-                    if sim.instrName[index] == 'BLTZ':
-                        if sim.src2Reg[index] in [sim.destReg[sim.preALUBuff[0]], sim.destReg[sim.preMemBuff[0]],sim.destReg[sim.preMemBuff[1]],sim.destReg[sim.preALUBuff[1]]]:
-                            print 'branch hazard 5 found'
-                            self.noHazards = False
-                        if self.noHazards:
-                            if sim.R[sim.src1Reg[index]] <= 0:
-                                sim.PC += (sim.arg3[index] + 4)
-                                print 'BLTZ1, PC NOW ' + str(sim.PC)
-                                numIssued += 1
-                                # return True
-                            else: 
-                                sim.PC += 4
-                    if sim.instrName[index] == 'BEQ':
-                        if self.noHazards:
-                            if(sim.R[sim.src1Reg[index]] == sim.R[sim.src2Reg[index]]):
-                                sim.PC += sim.arg3[i]
-                                sim.PC += 4
-                                numIssued += 1
-                                print 'BEQ1, PC NOW ' + str(sim.PC)
-                                return True
-                            else:
-                                sim.PC += 4\
+                    self.checkForBranchHazards(index)
                 #if jump, jump (no checking)
                 elif(sim.instrName[index] == 'J'):
                     sim.PC = sim.arg1[index] 
@@ -880,6 +789,7 @@ class instructionFetch:
                     sim.PC += 4
                 elif(sim.instrName[index] == 'BREAK'):
                     self.cleanup = True
+                    self.wait = 1
                 else:#some regular instruction
                     sim.preIssueBuff[numInPre] = index
                     sim.PC += 4
@@ -887,6 +797,10 @@ class instructionFetch:
 
         if(self.cleanup):
             print 'cleaning up...'
+            print sim.preIssueBuff
+            print sim.preALUBuff
+            print sim.postMemBuff
+            print sim.postALUBuff
             for i in range(4):
                 if sim.preIssueBuff[i] != -1:
                     print 'cleaning up preissue'
@@ -895,24 +809,29 @@ class instructionFetch:
                 print 'cleaning up pre buffers'
                 self.wait = 1
                 return True
-            if (sim.postMemBuff[1] != -1 or sim.postALUBuff[1] != -1):
+            elif (sim.postMemBuff[1] != -1 or sim.postALUBuff[1] != -1):
                 print 'cleaning up post buffers'
                 self.wait = 1
                 return True
-
-            #waits one cycle for stuff to WB clean up, then stops
+            elif (sim.instrName[index1] not in ['BLTZ', 'BEQ', 'J', 'JR']):
+                self.wait -= 1
+            # #waits one cycle for stuff to WB clean up, then stops
             if(self.wait == 1):
                 self.wait -= 1
+                print sim.preALUBuff
+                print sim.postALUBuff
+                print sim.preMemBuff
+                print sim.postMemBuff
                 return True
             else:
                 return False
-        if(sim.cycle > 20): 
+            if(self.wait == 0):
+                return False
+        if(sim.cycle >100): 
             return False
         return True
-        # post - when the correct number of instructions fetched,
-        # # the entire program will cycle and start execution over 
-        # # again
 
+    
 class cacheUnit:
     cacheSet = [[[0,0,0,0,0],[0,0,0,0,0]], #valid,dirty,tag,data,data
                 [[0,0,0,0,0],[0,0,0,0,0]],
@@ -934,7 +853,8 @@ class cacheUnit:
                 wbAddr = (wbAddr << 5) + (s << 3) #converted to address with s
                 index = (wbAddr - 96 - ( 4 * sim.numInstructions))/4 #index of mem
                 if(sim.memory[index] == self.cacheSet[s][0][3] and sim.memory[index+1] == self.cacheSet[s][0][4]):
-                    self.cacheSet[s][0][1] = 0 #reset dirty bit
+                    # self.cacheSet[s][0][1] = 0 #reset dirty bit
+                    pass
                 else:
                     sim.memory[index] = self.cacheSet[s][0][3] #change value in memory 1st word
                     sim.memory[index + 1] = self.cacheSet[s][0][4] #change value in memory 2nd word
@@ -944,15 +864,32 @@ class cacheUnit:
                 wbAddr = (wbAddr << 5) + (s << 3)
                 index = (wbAddr - 96 - ( 4 * sim.numInstructions))/4
                 if(sim.memory[index] == self.cacheSet[s][1][3] and sim.memory[index+1] == self.cacheSet[s][1][4]):
-                    self.cacheSet[s][1][1] = 0 #reset dirty bit
+                    # self.cacheSet[s][1][1] = 0 #reset dirty bit
+                    pass
                 else:
                     sim.memory[index] = self.cacheSet[s][1][3] #change value in memory 1st word
                     sim.memory[index + 1] = self.cacheSet[s][1][4] #change value in memory 2nd word
                 # self.cacheSet[s][1][1] = 0
+    def finalFlush(self):
+        for s in range(4):
+            if(self.cacheSet[s][0][2]==1):
+                wbAddr = self.cacheSet[s][0][2] #tag of mem
+                wbAddr = (wbAddr << 5) + (s << 3) #converted to address with s
+                index = (wbAddr - 96 - ( 4 * sim.numInstructions))/4 #index of mem
+                self.cacheSet[s][0][1] = 0 #reset dirty bit
+                sim.memory[index] = self.cacheSet[s][0][3] #change value in memory 1st word
+                sim.memory[index + 1] = self.cacheSet[s][0][4] #change value in memory 2nd word
+            elif (self.cacheSet[s][1][1] == 1): 
+                wbAddr = self.cacheSet[s][1][2]
+                wbAddr = (wbAddr << 5) + (s << 3)
+                index = (wbAddr - 96 - ( 4 * sim.numInstructions))/4
+                self.cacheSet[s][1][1] = 0 #reset dirty bit
+                sim.memory[index] = self.cacheSet[s][1][3] #change value in memory 1st word
+                sim.memory[index + 1] = self.cacheSet[s][1][4] #change value in memory 2nd word
+                # self.cacheSet[s][1][1] = 0
 
     def accessMemory(self, memIndex, instrIndex, isWriteTomem, dataToWrite):
         #figure out the alignment
-        print 'just missed: ' +  str(self.justMissedList)
         if(instrIndex != -1):
             address = (instrIndex * 4) + 96
             if(address % 8 == 0): #address 96+n8
@@ -991,6 +928,9 @@ class cacheUnit:
         #print 'SETNUM1: ' + str(setNum)
         #6. look in cache and see if the address is in either block
         hit = False
+        print 'tag = ' + str(tag)
+        print 'set = ' + str(setNum)
+        print self.cacheSet[setNum][0][2]
         if(self.cacheSet[setNum][0][2] == tag):
             assocblock = 0
             hit = True 
@@ -1322,14 +1262,14 @@ class simClass:
         go = True
         while go:
             print '\nCYCLE: ' + str(self.cycle)
-            # #########################################
+# #########################################
             # print '\nBEFORE WB CALL'
             # print 'PRE MEM: ' + str(self.preMemBuff)
             # print 'POST MEM: '+ str(self.postMemBuff)
             # print 'PRE ALU:'+ str(self.preALUBuff)
             # print 'POST ALU:'+ str(self.postALUBuff)
             # print 'PREISSUE: ' + str(self.preIssueBuff)
-            # #########################################
+# #########################################
             self.WB.run()
             # #########################################
             # print '\nAFTER WB CALL/BEFORE ALU CALL'
@@ -1382,7 +1322,10 @@ class simClass:
 
             # print 'cache set 3 ' + str(self.cache.cacheSet[3][:][:])
             # #########################################
-            self.cache.flush()
+            if go:
+                self.cache.flush()
+            else:
+                self.cache.finalFlush()
             self.printState()
             self.cycle+=1
             
