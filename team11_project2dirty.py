@@ -353,10 +353,18 @@ class writeBack:
     def run(self):
         #print('wb running')
         if(sim.postALUBuff[1] != -1):
+            print('wb destReg index: ' + str(sim.destReg[sim.postALUBuff[1]]))
+            print('wb R index: ' + str(sim.destReg[sim.postALUBuff[1]]))
+            print('wb data: ' + str(sim.postALUBuff[0]))
+
             sim.R[sim.destReg[sim.postALUBuff[1]]] = sim.postALUBuff[0]
             sim.postALUBuff[0] = -1
             sim.postALUBuff[1] = -1
         if(sim.postMemBuff[1] != -1):
+            # #print('wb destReg index: ' + str(sim.postMemBuff[1]))
+            # #print('wb R index: ' + str(sim.destReg[sim.postMemBuff[1]]))
+            # #print('wb data: ' + str(sim.postMemBuff[0]))
+            #print 'HIIII' + str(sim.postMemBuff[0])
             sim.R[sim.destReg[sim.postMemBuff[1]]] = sim.postMemBuff[0]
             sim.postMemBuff[0] = -1
             sim.postMemBuff[1] = -1
@@ -367,6 +375,14 @@ class arithmeticLogicUnit:
         #print('initialized ALU')
         pass
     def run(self):
+        #print('ALU running')
+        # pre - uses list from dis for args, expects valid prebuf values or -1s
+        # during - gets instruction and decodes which alu instruction to execute. 
+        # executes instruction and updates alu post buffer with instruction 
+        # index and the result of the alu instruction
+        # post - will move second index to position 0 and reset position 1 to -
+        #     if sim.opcode[ i ] == 0 and (int(sim.instruction[i],base=2)& specialMask) == 32:       #ADD
+        # sim.postALUBuff = [sim.R[ sim.arg1[i] ] + sim.R[ sim.arg2[i] ], i]
         if (sim.preALUBuff[0] != -1):
             i = sim.preALUBuff[0]
             # sim.postALUBuff[1] = sim.destReg[i]
@@ -389,10 +405,14 @@ class arithmeticLogicUnit:
                 sim.postALUBuff[0] = sim.R[sim.src1Reg[i] - sim.R[sim.src2Reg[i]]]
             elif(sim.instrName[i] == 'ADD'):
                 sim.postALUBuff[0] = sim.R[sim.src1Reg[i]] + sim.R[sim.src2Reg[i]]
+                print 'R[' + str(sim.src1Reg[i]) +'] = ' + str(sim.R[sim.src1Reg[i]])
+                print 'R[' + str(sim.src2Reg[i]) + '] = ' + str(sim.R[sim.src2Reg[i]])
             elif(sim.instrName[i] == 'MOVZ'):
                 if(sim.src2Reg[i] == 0):
                     sim.postALUBuff[0] = sim.src1Reg[i]
 
+            print 'POST ALU BUFF FROM ALU UNIT: ' + str(sim.postALUBuff)
+            ############### rest of alu instructions
             sim.preALUBuff[0] = sim.preALUBuff[1]
             sim.preALUBuff[1] = -1
         else:
@@ -422,6 +442,7 @@ class memWrite:
                 print 'LOOK HERE'+ passString
                 hit, data = sim.cache.accessMemory(sim.getIndexOfMemAddress(address), -1, True, sim.R[sim.src1Reg[i]])
 
+                #print('sw DEBUG\n address: ' + str(address))
             if(hit):
                 # intdata = int(str(data),2)
                 # if data[0:1] == '1':
@@ -443,6 +464,9 @@ class issueUnit:
         #print('initialized issue')
         pass
     def run(self):
+        #print('issue running')
+        #print('issue stuff')
+
         issueMe = True
         numIssued = 0
         numInPreIssueBuff = 0
@@ -452,6 +476,9 @@ class issueUnit:
         for i in range(4):
             if(sim.preIssueBuff[i] != -1):
                 numInPreIssueBuff += 1
+        #print('num in preissue buffer' + str(numInPreIssueBuff))
+        # 2. process instructions in preissue buff in 0-3 order. look
+        # for hazards of all types between mostly adjacent instructions
 
         ##WAR CHECK
         while(numIssued < 2 and numInPreIssueBuff > 0 and current < numInPreIssueBuff):
@@ -470,6 +497,14 @@ class issueUnit:
             if current > 0:
                 for i in range(0,current):
                     if (sim.destReg[currIndex] == sim.src1Reg[sim.preIssueBuff[i]] or sim.destReg[currIndex] == sim.src2Reg[sim.preIssueBuff[i]]):
+                        print 'war fail1'
+                        print 'i = ' + str(i)
+                        print 'instrname = ' + sim.instrName[currIndex]
+                        print 'current = ' + str(current)
+                        print 'current index = ' + str(currIndex)
+                        print 'destReg = ' + str(sim.destReg[currIndex])
+                        print 'sim.src1Reg[sim.preissueBuff[i]]  ' + str(sim.src1Reg[sim.preIssueBuff[i]])
+                        print 'sim.src2Reg[sim.preissueBuff[i]]  ' + str(sim.src2Reg[sim.preIssueBuff[i]])
                         issueMe = False
                         # break
             if sim.isMemOp(currIndex):
@@ -487,30 +522,51 @@ class issueUnit:
                             issueMe = False
                             # break
             ## RAW CHECK
+            # print 'i = ' + str(i)
+            # print 'current = ' + str(current)
+            # print 'current index = ' + str(currIndex)
+            # print 'src1Reg = ' + str(sim.src1Reg[currIndex])
+            # print 'src2Reg = ' + str(sim.src2Reg[currIndex])
+            # print 'sim.destReg[sim.preALUBuff[0]]  ' + str(sim.destReg[sim.preALUBuff[0]])
+            # print 'sim.destReg[sim.preALUBuff[1]]  ' + str(sim.destReg[sim.preALUBuff[1]])
             if current > 0:
                 for i in range(0,current):
                     if (sim.src1Reg[currIndex] == sim.destReg[sim.preIssueBuff[i]] or sim.src2Reg[currIndex] == sim.destReg[sim.preIssueBuff[i]]):
+                        print 'i = ' + str(i)
+                        print 'instrname = ' + sim.instrName[currIndex]
+                        print 'current = ' + str(current)
+                        print 'current index = ' + str(currIndex)
+                        print 'src1Reg = ' + str(sim.src1Reg[currIndex])
+                        print 'src2Reg = ' + str(sim.src2Reg[currIndex])
+                        print 'sim.destReg[sim.preissueBuff[0]]  ' + str(sim.destReg[sim.preIssueBuff[0]])
+                        print 'sim.destReg[sim.preissueBuff[1]]  ' + str(sim.destReg[sim.preIssueBuff[1]])
+
+                        print 'raw fail1'
                         issueMe = False
                         # break
             
             for i in range(0, len(sim.preMemBuff)):
                 if sim.preMemBuff[i] != -1:
                     if sim.src1Reg[currIndex] == sim.destReg[sim.preMemBuff[i]] or sim.src2Reg[currIndex] == sim.destReg[sim.preMemBuff[i]]:
+                        print 'raw fail2'
                         issueMe = False
                         # break
             for i in range(0, len(sim.preALUBuff)):
                 if sim.preALUBuff[i] != -1:
                     if sim.src1Reg[currIndex] == sim.destReg[sim.preALUBuff[i]] or sim.src2Reg[currIndex] == sim.destReg[sim.preALUBuff[i]]:
+                        print 'raw fail3'
                         issueMe = False
                         # break
 
             if sim.postALUBuff[1] != -1:
                 if sim.src1Reg[currIndex] == sim.destReg[sim.postALUBuff[1]] or sim.src2Reg[currIndex] == sim.destReg[sim.postALUBuff[1]]:
+                    print 'raw fail4'
                     #found RAW in post ALU Buffer
                     issueMe = False
             if sim.postMemBuff[1] != -1:
                 if sim.src1Reg[currIndex] == sim.destReg[sim.postMemBuff[1]] or sim.src2Reg[currIndex] == sim.destReg[sim.postMemBuff[1]]:
-                    #found RAW in post mem Buffer
+                    print 'raw fail5'
+                    #found RAW in post ALU Buffer
                     issueMe = False
            
             ## WAW CHECK
@@ -544,19 +600,34 @@ class issueUnit:
             ##ENFORCE ORDERING OF LW SW
             #Enforce ordering of LWs and SWs so we make sure all stores are done before loads
             if(sim.instrName[currIndex] == 'LW'):
+                print 'looking at lw enforcement check'
                 for i in range(0, current):
+                    print i 
                     if sim.instrName[sim.preIssueBuff[i]] == 'SW':
+                        print 'enforcing SW order'
                         issueMe = False
-
             ##ISSUE AND MOVE INSTRUCTIONS DOWN ONE LEVEL
             if issueMe:
                 numIssued += 1
+                print('IN ISSUE ME: ' + sim.instrName[currIndex])
+                #copy the instruction to the appropriate buffer
+                #the assumption here is that we will ahve a -1 i the right spot
                 if sim.isMemOp(currIndex):
                     sim.preMemBuff[sim.preMemBuff.index(-1)] = currIndex
+                    #print 'pre mem buffer after issue  ' + str(sim.preMemBuff)
                 else:
                     sim.preALUBuff[sim.preALUBuff.index(-1)] = currIndex
+                    #print 'pre alu buffer after issue  ' + str(sim.preALUBuff)
 
-                sim.preIssueBuff[current:3] = sim.preIssueBuff[current+1:]
+                #move the instructions in the preissue buff down one level
+                # #print "pre" + str(sim.preALUBuff[current + 1])
+                #print('BEFORE MOVING: '),
+                #print sim.preIssueBuff[current:3]
+                #print('END OF LIST: ' ),
+                #print sim.preIssueBuff[current+1:4]
+                sim.preIssueBuff[current:3] = sim.preIssueBuff[current+1:4]
+                #print('AFTER MOVING: '),
+                #print sim.preIssueBuff[current:]
                 sim.preIssueBuff[3] = -1
                 numInPreIssueBuff -= 1
             else: 
@@ -775,7 +846,7 @@ class cacheUnit:
     def __init__(self):
         pass
 
-    def flush(self): #deprecated
+    def flush(self):
         for s in range(4):
             if(self.cacheSet[s][0][1] == 1):#if first block claims dirty
                 wbAddr = self.cacheSet[s][0][2] #tag of mem
@@ -799,7 +870,6 @@ class cacheUnit:
                     sim.memory[index] = self.cacheSet[s][1][3] #change value in memory 1st word
                     sim.memory[index + 1] = self.cacheSet[s][1][4] #change value in memory 2nd word
                 # self.cacheSet[s][1][1] = 0
-    
     def finalFlush(self):
         for s in range(4):
             if(self.cacheSet[s][0][2]==1):
@@ -855,12 +925,17 @@ class cacheUnit:
         tag =  (address1 & self.tagMask)
         setNum = (tag & self.setMask) >> 3
         tag = tag >> 5
-
+        #print 'SETNUM1: ' + str(setNum)
+        #6. look in cache and see if the address is in either block
         hit = False
-
+        print 'tag = ' + str(tag)
+        print 'set = ' + str(setNum)
+        print self.cacheSet[setNum][0][2]
         if(self.cacheSet[setNum][0][2] == tag):
             assocblock = 0
             hit = True 
+            # print self.cacheSet[setNum][0][2]
+            # print tag
         elif(self.cacheSet[setNum][1][2] == tag):
             assocblock = 1
             hit = True
@@ -869,12 +944,19 @@ class cacheUnit:
             #update dirty bit
             self.cacheSet[setNum][assocblock][1] = 1 
             #update set lru bit
+            #print 'SETNUM4: ' + str(setNum)
             self.lruBit[setNum] = (assocblock + 1) % 2
             #write data to cache
             self.cacheSet[setNum][assocblock][dataword + 3] = dataToWrite
             return True, self.cacheSet[setNum][assocblock][dataword + 3]
         #8.
         elif(hit and not isWriteTomem):
+            # if(memIndex != -1):
+            #     self.justMissedList[1] = -1
+            # else:
+            #     self.justMissedList[0] = -1
+            #update set lru bit
+            #print 'SETNUM3: ' + str(setNum)
             self.lruBit[setNum] = (assocblock + 1) % 2
             return True, self.cacheSet[setNum][assocblock][dataword + 3]
         #9. 
@@ -890,8 +972,17 @@ class cacheUnit:
                 if self.cacheSet[setNum][ self.lruBit[setNum] ][1] == 1:
                     # write back the memory address asociated with the block
                     wbAddr = self.cacheSet[setNum][ self.lruBit[setNum] ][2] #tag
-
+                    # modify tag to get back to the original address, remember all addresses are inherently word aligned
+                    # lower 2 bits are zero !!!!
                     wbAddr = (wbAddr << 5) +( setNum << 3)
+
+                    # we will, we better,  only have dirty cache entries for data mem, not instructions
+                    # update data mem locations!
+                    # if the cache tag: set gives us a double word aligned value ie. 96,104,
+                    # Lets say that word 0 is the last instruction and word on is the first data element
+                    # we would only want to update the second word
+                    # But if lets say we have two data elemeents, then the cache would have two data element and we would write
+                    # back both even if one was dirty.  This takes care of the boundry condition.
 
                     if( wbAddr >= (sim.numInstructions  *4) + 96 ):
                         sim.memory[ sim.getIndexOfMemAddress(wbAddr) ] = self.cacheSet[setNum][ self.lruBit[setNum] ][3]
@@ -989,6 +1080,7 @@ class simClass:
         indices[7] = (self.preMemBuff[0])
         indices[8] = (self.preMemBuff[1])
         indices[9] = self.postMemBuff[1]
+        # print indices
 
         for i in range(0,10):
 
@@ -1011,7 +1103,79 @@ class simClass:
                     formattedInstr[i] = '\t[' + self.instrName[indices[i]] + ']'
             else: 
                 formattedInstr[i] = ''
+        #############################print pipeline to console
+        # #print('--------------------\n' 
+        #     + 'Cycle:' + str(self.cycle)
+        #     + '\n\nPre-Issue Buffer:\n'
+        #     + '\tEntry 0: \t' + formattedInstr[0] + '\n'
+        #     + '\tEntry 1: \t' + formattedInstr[1] + '\n'
+        #     + '\tEntry 2: \t' + formattedInstr[2] + '\n'
+        #     + '\tEntry 3: \t' + formattedInstr[3] + '\n'
+        #     + 'Pre_ALU Queue:\n'
+        #     + '\tEntry 0: \t' + formattedInstr[4] + '\n'
+        #     + '\tEntry 1: \t' + formattedInstr[5] + '\n'
+        #     + 'Post_ALU Queue:\n'
+        #     + '\tEntry 0: \t' + formattedInstr[6] + '\n'
+        #     + 'Pre_MEM Queue:\n'
+        #     + '\tEntry 0: \t' + formattedInstr[7] + '\n'
+        #     + '\tEntry 1: \t' + formattedInstr[8] + '\n'
+        #     + 'Post_MEM Queue:\n'
+        #     + '\tEntry 0: \t' + formattedInstr[9] + '\n')
 
+        # #print('Registers' 
+        #     + '\nR00:\t' + str(self.R[0]) + '\t' + str(self.R[1]) + '\t' + str(self.R[2]) + '\t' + str(self.R[3]) 
+        #     + '\t' + str(self.R[4]) + '\t' + str(self.R[5]) + '\t' + str(self.R[6]) + '\t' + str(self.R[7])
+        #     + '\nR08:\t' + str(self.R[8]) + '\t' + str(self.R[9]) + '\t' + str(self.R[10]) + '\t' + str(self.R[11]) 
+        #     + '\t' + str(self.R[12]) + '\t' + str(self.R[13]) + '\t' + str(self.R[14]) + '\t' + str(self.R[15])
+        #     + '\nR16:\t' + str(self.R[16]) + '\t' + str(self.R[17]) + '\t' + str(self.R[18]) + '\t' + str(self.R[19]) 
+        #     + '\t' + str(self.R[20]) + '\t' + str(self.R[21]) + '\t' + str(self.R[22]) + '\t' + str(self.R[23])
+        #     + '\nR24:\t' + str(self.R[24]) + '\t' + str(self.R[25]) + '\t' + str(self.R[26]) + '\t' + str(self.R[27]) 
+        #     + '\t' + str(self.R[28]) + '\t' + str(self.R[29]) + '\t' + str(self.R[30]) + '\t' + str(self.R[31])
+        #     + '\n')
+            
+        # #print('Cache\n'
+        #     + 'Set 0: LRU=' + str(self.cache.lruBit[0]) + '\n'
+        #     + '\tEntry 0: [('+ str(self.cache.cacheSet[0][0][0]) + ', '+ str(self.cache.cacheSet[0][0][1]) 
+        #     + ', '+ str(self.cache.cacheSet[0][0][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[0][0][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[0][0][4]),32) + '>]\n' 
+        #     + '\tEntry 1: [('+ str(self.cache.cacheSet[0][1][0]) + ', '+ str(self.cache.cacheSet[0][1][1]) 
+        #     + ', '+ str(self.cache.cacheSet[0][1][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[0][1][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[0][1][4]),32) + '>]\n' 
+        #     + 'Set 1: LRU=' + str(self.cache.lruBit[1]) + '\n'
+        #     + '\tEntry 0: [('+ str(self.cache.cacheSet[1][0][0]) + ', '+ str(self.cache.cacheSet[1][0][1]) 
+        #     + ', '+ str(self.cache.cacheSet[1][0][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[1][0][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[1][0][4]),32) + '>]\n' 
+        #     + '\tEntry 1:  [('+ str(self.cache.cacheSet[1][1][0]) + ', '+ str(self.cache.cacheSet[1][1][1]) 
+        #     + ', '+ str(self.cache.cacheSet[1][1][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[1][1][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[1][1][4]),32) + '>]\n' 
+        #     + 'Set 2: LRU=' + str(self.cache.lruBit[2]) + '\n'
+        #     + '\tEntry 0: [('+ str(self.cache.cacheSet[2][0][0]) + ', '+ str(self.cache.cacheSet[2][0][1]) 
+        #     + ', '+ str(self.cache.cacheSet[2][0][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[2][0][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[2][0][4]),32) + '>]\n' 
+        #     + '\tEntry 1: [('+ str(self.cache.cacheSet[2][1][0]) + ', '+ str(self.cache.cacheSet[2][1][1]) 
+        #     + ', '+ str(self.cache.cacheSet[2][1][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[2][1][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[2][1][4]),32) + '>]\n'
+        #     + 'Set 3: LRU=' + str(self.cache.lruBit[0]) + '\n'
+        #     + '\tEntry 0:  [('+ str(self.cache.cacheSet[3][0][0]) + ', '+ str(self.cache.cacheSet[3][0][1]) 
+        #     + ', '+ str(self.cache.cacheSet[3][0][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[3][0][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[3][0][4]),32) + '>]\n' 
+        #     + '\tEntry 1: [('+ str(self.cache.cacheSet[3][1][0]) + ', '+ str(self.cache.cacheSet[3][1][1]) 
+        #     + ', '+ str(self.cache.cacheSet[3][1][2]) + ') <'+ str.zfill(str(self.cache.cacheSet[3][1][3]),32) + ', '
+        #     + str.zfill(str(self.cache.cacheSet[3][1][4]),32) + '>]\n' )
+
+
+        # dataAddress = 96 + (self.numInstructions * 4)
+        # i = 0
+        # while i < len(self.memory):
+        #     if( i % 8 == 0 and i == 0):
+        #         #print(str(dataAddress) + ':\t' + str(self.memory[i])),
+        #     elif( i % 8 == 0 and not i == 0):
+        #         #print('\n' + str(dataAddress) + ':\t' + str(self.memory[i])),
+        #     else: #not a multiple of 8
+        #         #print('\t' + str(self.memory[i])),
+        #     i += 1
+        #     dataAddress += 4
+##################################file writing below
         pipelineFile.write('--------------------\n' 
             + 'Cycle:' + str(self.cycle)
             + '\n\nPre-Issue Buffer:\n'
@@ -1041,22 +1205,40 @@ class simClass:
             + '\t' + str(self.R[28]) + '\t' + str(self.R[29]) + '\t' + str(self.R[30]) + '\t' + str(self.R[31])
             + '\n')
             
-        
-        pipelineFile.write('\nCache\n')
+        pipelineFile.write('\nCache\n'
+            + 'Set 0: LRU=' + str(self.cache.lruBit[0]) + '\n'
+            + '\tEntry 0:[('+ str(self.cache.cacheSet[0][0][0]) + ','+ str(self.cache.cacheSet[0][0][1]) 
+            + ','+ str(self.cache.cacheSet[0][0][2]) + ')<'+ str(self.cache.cacheSet[0][0][3]) + ','
+            + str(self.cache.cacheSet[0][0][4]) + '>]\n' 
+            + '\tEntry 1:[('+ str(self.cache.cacheSet[0][1][0]) + ','+ str(self.cache.cacheSet[0][1][1]) 
+            + ','+ str(self.cache.cacheSet[0][1][2]) + ')<'+ str(self.cache.cacheSet[0][1][3]) + ','
+            + str(self.cache.cacheSet[0][1][4]) + '>]\n' 
+            + 'Set 1: LRU=' + str(self.cache.lruBit[1]) + '\n'
+            + '\tEntry 0:[('+ str(self.cache.cacheSet[1][0][0]) + ','+ str(self.cache.cacheSet[1][0][1]) 
+            + ','+ str(self.cache.cacheSet[1][0][2]) + ')<'+ str(self.cache.cacheSet[1][0][3]) + ','
+            + str(self.cache.cacheSet[1][0][4]) + '>]\n' 
+            + '\tEntry 1:[('+ str(self.cache.cacheSet[1][1][0]) + ','+ str(self.cache.cacheSet[1][1][1]) 
+            + ','+ str(self.cache.cacheSet[1][1][2]) + ')<'+ str(self.cache.cacheSet[1][1][3]) + ','
+            + str(self.cache.cacheSet[1][1][4]) + '>]\n' 
+            + 'Set 2: LRU=' + str(self.cache.lruBit[2]) + '\n'
+            + '\tEntry 0:[('+ str(self.cache.cacheSet[2][0][0]) + ','+ str(self.cache.cacheSet[2][0][1]) 
+            + ','+ str(self.cache.cacheSet[2][0][2]) + ')<'+ str(self.cache.cacheSet[2][0][3]) + ','
+            + str(self.cache.cacheSet[2][0][4]) + '>]\n' 
+            + '\tEntry 1:[('+ str(self.cache.cacheSet[2][1][0]) + ','+ str(self.cache.cacheSet[2][1][1]) 
+            + ','+ str(self.cache.cacheSet[2][1][2]) + ')<'+ str(self.cache.cacheSet[2][1][3]) + ','
+            + str(self.cache.cacheSet[2][1][4]) + '>]\n'
+            + 'Set 3: LRU=' + str(self.cache.lruBit[3]) + '\n'
+            + '\tEntry 0:[('+ str(self.cache.cacheSet[3][0][0]) + ','+ str(self.cache.cacheSet[3][0][1]) 
+            + ','+ str(self.cache.cacheSet[3][0][2]) + ')<'+ str(self.cache.cacheSet[3][0][3]) + ','
+            + str(self.cache.cacheSet[3][0][4]) + '>]\n' 
+            + '\tEntry 1:[('+ str(self.cache.cacheSet[3][1][0]) + ','+ str(self.cache.cacheSet[3][1][1]) 
+            + ','+ str(self.cache.cacheSet[3][1][2]) + ')<'+ str(self.cache.cacheSet[3][1][3]) + ','
+            + str(self.cache.cacheSet[3][1][4]) + '>]\n' )
 
-        for i in range(4):
-            pipelineFile.write('Set ' + str(i) +': LRU=' + str(self.cache.lruBit[i]) + '\n')
-
-            for j in range(2):
-                pipelineFile.write('\tEntry ' + str(j) + ':[('+ str(self.cache.cacheSet[i][j][0]) + ','
-                    + str(self.cache.cacheSet[i][j][1]) + ','+ str(self.cache.cacheSet[i][j][2]) 
-                    + ')<'+ str(self.cache.cacheSet[i][j][3]) + ',' + str(self.cache.cacheSet[i][j][4]) 
-                    + '>]\n')
 
         pipelineFile.write('\nData')
         dataAddress = 96 + (self.numInstructions * 4)
         i = 0
-
         while i < len(self.memory):
             if( i % 8 == 0 and i == 0):
                 pipelineFile.write('\n' + str(dataAddress) + ':' + str(self.memory[i])),
@@ -1079,12 +1261,67 @@ class simClass:
     def run( self):
         go = True
         while go:
+            print '\nCYCLE: ' + str(self.cycle)
+# #########################################
+            # print '\nBEFORE WB CALL'
+            # print 'PRE MEM: ' + str(self.preMemBuff)
+            # print 'POST MEM: '+ str(self.postMemBuff)
+            # print 'PRE ALU:'+ str(self.preALUBuff)
+            # print 'POST ALU:'+ str(self.postALUBuff)
+            # print 'PREISSUE: ' + str(self.preIssueBuff)
+# #########################################
             self.WB.run()
+            # #########################################
+            # print '\nAFTER WB CALL/BEFORE ALU CALL'
+            # print 'PRE MEM: ' + str(self.preMemBuff)
+            # print 'POST MEM: '+ str(self.postMemBuff)
+            # print 'PRE ALU:'+ str(self.preALUBuff)
+            # print 'POST ALU:'+ str(self.postALUBuff)
+            # print 'PREISSUE: ' + str(self.preIssueBuff)
+            # #########################################
             self.ALU.run()
+            # #########################################
+            # print '\nAFTER ALU CALL/BEFORE MEM CALL'
+            # print 'PRE MEM: ' + str(self.preMemBuff)
+            # print 'POST MEM: '+ str(self.postMemBuff)
+            # print 'PRE ALU:'+ str(self.preALUBuff)
+            # print 'POST ALU:'+ str(self.postALUBuff)
+            # print 'PREISSUE: ' + str(self.preIssueBuff)
+            # #########################################
             self.MEM.run()
+            #########################################
+            # print '\nAFTER MEM CALL/BEFORE ISSUE CALL'
+            # print 'PC' + str(sim.PC)
+            # print 'PRE MEM: ' + str(self.preMemBuff)
+            # print 'POST MEM: '+ str(self.postMemBuff)
+            # print 'PRE ALU:'+ str(self.preALUBuff)
+            # print 'POST ALU:'+ str(self.postALUBuff)
+            # print 'PREISSUE: ' + str(self.preIssueBuff)
+            # print 'cache set 3 ' + str(self.cache.cacheSet[3][:][:])
+            # ########################################
             self.issue.run()
-            go = self.fetch.run()
+            # #########################################
+            # print '\nAFTER ISSUE CALL/BEFORE FETCH CALL'
+            # print 'PRE MEM: ' + str(self.preMemBuff)
+            # print 'POST MEM: '+ str(self.postMemBuff)
+            # print 'PRE ALU:'+ str(self.preALUBuff)
+            # print 'POST ALU:'+ str(self.postALUBuff)
+            # print 'PREISSUE: ' + str(self.preIssueBuff)
 
+            # print 'cache set 3 ' + str(self.cache.cacheSet[3][:][:])
+            # #########################################
+            go = self.fetch.run()
+            # #########################################
+            # print '\nAFTER FETCH CALL/BEFORE PRINTSTATE CALL'
+            # print 'PC' + str(sim.PC)
+            # print 'PRE MEM: ' + str(self.preMemBuff)
+            # print 'POST MEM: '+ str(self.postMemBuff)
+            # print 'PRE ALU:'+ str(self.preALUBuff)
+            # print 'POST ALU:'+ str(self.postALUBuff)
+            # print 'PREISSUE: ' + str(self.preIssueBuff)
+
+            # print 'cache set 3 ' + str(self.cache.cacheSet[3][:][:])
+            # #########################################
             if not go:
                 self.cache.finalFlush()
             self.printState()
